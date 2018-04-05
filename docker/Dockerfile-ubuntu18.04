@@ -1,0 +1,36 @@
+FROM ubuntu:18.04
+LABEL maintainer "david lexuszhi1990@gmail.com"
+
+# Install dependencies
+RUN     sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
+
+# https://stackoverflow.com/questions/8671308/non-interactive-method-for-dpkg-reconfigure-tzdata
+RUN echo "Asia/Hong_Kong" > /etc/timezone && dpkg-reconfigure -f noninteractive tzdata
+
+RUN     apt-get update --fix-missing && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        git build-essential pkg-config \
+        python3-pip python3-tk python3-setuptools \
+        libjpeg8-dev libtiff5-dev \
+        libavcodec-dev libavformat-dev libswscale-dev libv4l-dev \
+        libgtk2.0-dev libatlas-base-dev gfortran libopencv-dev
+
+# Install Python library for development
+# FIXME: ast is not installed successfully
+RUN     pip3 install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/  \
+        jupyter \
+        ipykernel \
+        cython \
+        opencv-python \
+        numpy \
+        Pillow \
+        argparse \
+        matplotlib \
+        scipy \
+        tqdm \
+        requests \
+        fire \
+        dill \
+        tensorflow
+
+RUN     pip3 install git+https://code.aliyun.com/85343435/tensorpack-mirror.git
