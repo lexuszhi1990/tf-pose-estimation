@@ -6,6 +6,12 @@ import ast
 import common
 import cv2
 import numpy as np
+from pathlib import Path
+
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
+
 from estimator import TfPoseEstimator
 from networks import get_graph_path, model_wh
 
@@ -33,6 +39,8 @@ if __name__ == '__main__':
     w, h = model_wh(args.resolution)
     e = TfPoseEstimator(get_graph_path(args.model), target_size=(w, h))
 
+    img_path = Path(args.image)
+
     # estimate human poses from a single image !
     image = common.read_imgfile(args.image, None, None)
     # image = cv2.fastNlMeansDenoisingColored(image, None, 10, 10, 7, 21)
@@ -43,19 +51,15 @@ if __name__ == '__main__':
     logger.info('inference image: %s in %.4f seconds.' % (args.image, elapsed))
 
     image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
-    # cv2.imshow('tf-pose-estimation result', image)
-    # cv2.waitKey()
 
-    import matplotlib.pyplot as plt
+    result_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    result_img_path = img_path.parent.joinpath(img_path.stem + '_result.png')
+    cv2.imwrite(result_img_path.as_posix(), result_img)
+    logger.info('save result image')
 
     fig = plt.figure()
-    a = fig.add_subplot(2, 2, 1)
-    a.set_title('Result')
-    plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-
     bgimg = cv2.cvtColor(image.astype(np.uint8), cv2.COLOR_BGR2RGB)
     bgimg = cv2.resize(bgimg, (e.heatMat.shape[1], e.heatMat.shape[0]), interpolation=cv2.INTER_AREA)
-
     # show network output
     a = fig.add_subplot(2, 2, 2)
     plt.imshow(bgimg, alpha=0.5)
@@ -70,40 +74,18 @@ if __name__ == '__main__':
     a = fig.add_subplot(2, 2, 3)
     a.set_title('Vectormap-x')
     # plt.imshow(CocoPose.get_bgimg(inp, target_size=(vectmap.shape[1], vectmap.shape[0])), alpha=0.5)
-    plt.imshow(tmp2_odd, cmap=plt.cm.gray, alpha=0.5)
     plt.colorbar()
+    plt.imshow(tmp2_odd, cmap=plt.cm.gray, alpha=0.5)
 
     a = fig.add_subplot(2, 2, 4)
     a.set_title('Vectormap-y')
     # plt.imshow(CocoPose.get_bgimg(inp, target_size=(vectmap.shape[1], vectmap.shape[0])), alpha=0.5)
     plt.imshow(tmp2_even, cmap=plt.cm.gray, alpha=0.5)
     plt.colorbar()
-    plt.show()
-
-    import sys
-    sys.exit(0)
+    # plt.show()
+    plt.savefig(img_path.parent.joinpath(img_path.stem + '_Vectormap.png').as_posix())
+    plt.clf()
+    logger.info("save vectmap png")
 
     logger.info('3d lifting initialization.')
     poseLifting = Prob3dPose('./src/lifting/models/prob_model_params.mat')
-
-    image_h, image_w = image.shape[:2]
-    standard_w = 640
-    standard_h = 480
-
-    pose_2d_mpiis = []
-    visibilities = []
-    for human in humans:
-        pose_2d_mpii, visibility = common.MPIIPart.from_coco(human)
-        pose_2d_mpiis.append([(int(x * standard_w + 0.5), int(y * standard_h + 0.5)) for x, y in pose_2d_mpii])
-        visibilities.append(visibility)
-
-    pose_2d_mpiis = np.array(pose_2d_mpiis)
-    visibilities = np.array(visibilities)
-    transformed_pose2d, weights = poseLifting.transform_joints(pose_2d_mpiis, visibilities)
-    pose_3d = poseLifting.compute_3d(transformed_pose2d, weights)
-
-    for i, single_3d in enumerate(pose_3d):
-        plot_pose(single_3d)
-    plt.show()
-
-    pass
